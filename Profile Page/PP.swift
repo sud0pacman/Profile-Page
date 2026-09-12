@@ -6,167 +6,116 @@ struct ProfileInfoScreen: View {
 
     private let minAvatarSize: CGFloat = 96
 
-    private var maxAvatarHeight: CGFloat {
-        UIScreen.main.bounds.height / 3
-    }
-    
-    @State private var pulledDown: CGFloat = CGFloat(0.0)
-
+    // Faqat overscroll (pastga tortish) miqdori
+    @State private var pulledDown: CGFloat = 0
     @State private var isAvatarExpanded = false
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
+        GeometryReader { outerProxy in
+            let maxAvatarHeight = outerProxy.size.height / 3
 
-                // MARK: - Avatar Header
-
-                GeometryReader { proxy in
-                    let minY = proxy.frame(in: .named("scroll")).minY
-
-                    let rawProgress = min(
-                        pulledDown / (maxAvatarHeight - minAvatarSize),
-                        1
-                    )
-
-                    // 0.3 gacha normal progress
-                    // 0.3 dan keyin avtomatik expand
-                    let progress: CGFloat = {
-                        if isAvatarExpanded {
-                            return 1
-                        }
-
-                        if rawProgress <= 0.3 {
-                            return rawProgress
-                        }
-
-                        let normalized = (rawProgress - 0.3) / 0.7
-
-                        // Sekinroq 0.3 → 1
-                        let eased = pow(normalized, 6.8)
-
-                        return 0.3 + eased * 0.7
-                    }()
-
-                    avatar(
-                        progress: progress,
-                        pulledDown: pulledDown,
-                        screenWidth: proxy.size.width
-                    )
-                    .offset(
-                        y: isAvatarExpanded
-                            ? 0
-                            : -pulledDown
-                    )
-                    .onChange(of: minY) { _, newValue in
-//                        pulledDown = max(0, newValue)
-                        pulledDown = newValue
-                    }
-                    .onChange(of: rawProgress) { _, newValue in
-                        if newValue >= 0.3 && !isAvatarExpanded {
-                            withAnimation(
-                                .easeOut(duration: 0.6)
-                            ) {
-                                isAvatarExpanded = true
-                            }
-                        }
-                    }
-                    
-                    Text("""
-                        minY: \(minY)
-                        rawProgress: \(rawProgress)
-                        progress: \(progress)
-                        pulledDown: \(pulledDown)
-                        """)
-                    .foregroundColor(.red)
-                }
-
-                // MUHIM:
-                // Expanded holatda ScrollView ichida haqiqiy joy ajratiladi.
-                .frame(
-                    height: isAvatarExpanded
-                        ? maxAvatarHeight
-                        : minAvatarSize + pulledDown
-                )
-                .animation(
-                    .easeOut(duration: 0.6),
-                    value: isAvatarExpanded
-                )
-
-                // MARK: - Info
-
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    Text(userName)
-                        .font(.title2.bold())
-                        .padding(.top, 12)
 
-                    Text("oxirgi marta bugun 14:32 da online bo'lgan")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 12)
-                    
-                    muteToggleRow
+                    // MARK: - Avatar Header
 
-                    ForEach(1...13, id: \.self) { index in
+                    GeometryReader { proxy in
+                        let minY = proxy.frame(in: .named("scroll")).minY
 
-                        Divider()
-                            .padding(.leading)
+                        avatar(
+                            progress: progress(maxAvatarHeight: maxAvatarHeight),
+                            screenWidth: proxy.size.width,
+                            maxAvatarHeight: maxAvatarHeight
+                        )
+                        .onChange(of: minY) { _, newValue in
+                            handleScrollChange(newValue, maxAvatarHeight: maxAvatarHeight)
+                        }
+                    }
+                    .frame(height: headerHeight(maxAvatarHeight: maxAvatarHeight))
+                    .animation(.easeOut(duration: 0.6), value: isAvatarExpanded)
 
-                        phoneRow
+                    // MARK: - Info
 
-                        Divider()
-                            .padding(.leading)
+                    VStack(spacing: 0) {
+                        Text(userName)
+                            .font(.title2.bold())
+                            .padding(.top, 12)
 
-                        mediaCountersRow
+                        Text("oxirgi marta bugun 14:32 da online bo'lgan")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.bottom, 12)
+
+                        muteToggleRow
+
+                        ForEach(1...13, id: \.self) { index in
+                            Divider().padding(.leading)
+                            phoneRow
+                            Divider().padding(.leading)
+                            mediaCountersRow
+                        }
                     }
                 }
             }
+            .coordinateSpace(name: "scroll")
         }
-        .coordinateSpace(name: "scroll")
     }
-    
-    private func pulledDownTo(to newValue: CGFloat) {
-        pulledDown = newValue
+
+    // MARK: - Hisoblashlar (endi parametr sifatida maxAvatarHeight qabul qiladi)
+
+    private func rawProgress(_ maxAvatarHeight: CGFloat) -> CGFloat {
+        pulledDown / (maxAvatarHeight - minAvatarSize)
+    }
+
+    private func progress(maxAvatarHeight: CGFloat) -> CGFloat {
+        if isAvatarExpanded { return 1 }
+        let raw = rawProgress(maxAvatarHeight)
+        if raw <= 0.3 { return raw }
+        let normalized = (raw - 0.3) / 0.7
+        let eased = pow(normalized, 6.8)
+        return 0.3 + eased * 0.7
+    }
+
+    private func headerHeight(maxAvatarHeight: CGFloat) -> CGFloat {
+        minAvatarSize + (maxAvatarHeight - minAvatarSize) * progress(maxAvatarHeight: maxAvatarHeight)
+    }
+
+    private func handleScrollChange(_ minY: CGFloat, maxAvatarHeight: CGFloat) {
+        if minY < 0 {
+            pulledDown = 0
+            if isAvatarExpanded {
+                withAnimation(.easeOut(duration: 0.35)) {
+                    isAvatarExpanded = false
+                }
+            }
+            return
+        }
+
+        pulledDown = minY
+        guard !isAvatarExpanded else { return }
+
+        let newRaw = minY / (maxAvatarHeight - minAvatarSize)
+        if newRaw >= 0.3 {
+            withAnimation(.easeOut(duration: 0.6)) {
+                isAvatarExpanded = true
+            }
+        }
     }
 
     // MARK: - Avatar
 
     @ViewBuilder
-    private func avatar(
-        progress: CGFloat,
-        pulledDown: CGFloat,
-        screenWidth: CGFloat
-    ) -> some View {
-
-        // Eng muhim o'zgarish:
-        //
-        // expanded bo'lsa avatar real balandlikka ega.
-        let height = isAvatarExpanded
-            ? maxAvatarHeight
-            : minAvatarSize + pulledDown
-
-        let width =
-            minAvatarSize
-            + (screenWidth - minAvatarSize) * progress
-
+    private func avatar(progress: CGFloat, screenWidth: CGFloat, maxAvatarHeight: CGFloat) -> some View {
+        let height = minAvatarSize + (maxAvatarHeight - minAvatarSize) * progress
+        let width = minAvatarSize + (screenWidth - minAvatarSize) * progress
         let circleRadius = minAvatarSize / 2
-
-        let cornerRadius =
-            circleRadius * (1 - progress)
-            + 24 * progress
+        let cornerRadius = circleRadius * (1 - progress) + 24 * progress
 
         Image(avatarImageName)
             .resizable()
             .scaledToFill()
-            .frame(
-                width: width,
-                height: height
-            )
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: cornerRadius,
-                    style: .continuous
-                )
-            )
+            .frame(width: width, height: height)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .frame(maxWidth: .infinity)
     }
 
@@ -180,9 +129,7 @@ struct ProfileInfoScreen: View {
     private var phoneRow: some View {
         HStack {
             Text("Telefon raqami")
-
             Spacer()
-
             Text("+998 90 123 45 67")
                 .foregroundStyle(.secondary)
         }
@@ -192,9 +139,7 @@ struct ProfileInfoScreen: View {
     private var mediaCountersRow: some View {
         HStack {
             Label("124 ta rasm", systemImage: "photo")
-
             Spacer()
-
             Label("18 ta video", systemImage: "video")
         }
         .font(.footnote)
