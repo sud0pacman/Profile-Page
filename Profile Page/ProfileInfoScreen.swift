@@ -6,7 +6,7 @@ struct ProfileInfoScreen: View {
 
     private let minAvatarSize: CGFloat = 96
 
-    // Faqat overscroll (pastga tortish) miqdori
+    // Overscroll (pull down) size only
     @State private var pulledDown: CGFloat = 0
     @State private var isAvatarExpanded = false
 
@@ -41,19 +41,17 @@ struct ProfileInfoScreen: View {
                             .font(.title2.bold())
                             .padding(.top, 12)
 
-                        Text("oxirgi marta bugun 14:32 da online bo'lgan")
+                        Text("was last online today at 14:32")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .padding(.bottom, 12)
 
                         muteToggleRow
 
-                        ForEach(1...13, id: \.self) { index in
-                            Divider().padding(.leading)
-                            phoneRow
-                            Divider().padding(.leading)
-                            mediaCountersRow
-                        }
+                        Divider().padding(.leading)
+                        phoneRow
+                        Divider().padding(.leading)
+                        mediaCountersRow
                     }
                 }
             }
@@ -61,7 +59,7 @@ struct ProfileInfoScreen: View {
         }
     }
 
-    // MARK: - Hisoblashlar (endi parametr sifatida maxAvatarHeight qabul qiladi)
+    // MARK: - Calculating
 
     private func rawProgress(_ maxAvatarHeight: CGFloat) -> CGFloat {
         pulledDown / (maxAvatarHeight - minAvatarSize)
@@ -72,7 +70,7 @@ struct ProfileInfoScreen: View {
         let raw = rawProgress(maxAvatarHeight)
         if raw <= 0.3 { return raw }
         let normalized = (raw - 0.3) / 0.7
-        let eased = pow(normalized, 6.8)
+        let eased = pow(normalized, 1.8)
         return 0.3 + eased * 0.7
     }
 
@@ -122,13 +120,13 @@ struct ProfileInfoScreen: View {
     // MARK: - Rows
 
     private var muteToggleRow: some View {
-        Toggle("Ovozsiz", isOn: .constant(false))
+        Toggle("Unmute", isOn: .constant(false))
             .padding()
     }
 
     private var phoneRow: some View {
         HStack {
-            Text("Telefon raqami")
+            Text("Phone number")
             Spacer()
             Text("+998 90 123 45 67")
                 .foregroundStyle(.secondary)
@@ -138,9 +136,9 @@ struct ProfileInfoScreen: View {
 
     private var mediaCountersRow: some View {
         HStack {
-            Label("124 ta rasm", systemImage: "photo")
+            Label("124 pictures", systemImage: "photo")
             Spacer()
-            Label("18 ta video", systemImage: "video")
+            Label("18 videos", systemImage: "video")
         }
         .font(.footnote)
         .padding()
