@@ -9,6 +9,9 @@ struct ProfileInfoScreen: View {
     // Faqat overscroll (pastga tortish) miqdori
     @State private var pulledDown: CGFloat = 0
     @State private var isAvatarExpanded = false
+    @State private var isNameOverlaid = false
+
+    @Namespace private var nameNamespace
 
     var body: some View {
         GeometryReader { outerProxy in
@@ -37,14 +40,12 @@ struct ProfileInfoScreen: View {
                     // MARK: - Info
 
                     VStack(spacing: 0) {
-                        Text(userName)
-                            .font(.title2.bold())
-                            .padding(.top, 12)
-
-                        Text("oxirgi marta bugun 14:32 da online bo'lgan")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .padding(.bottom, 12)
+                        if !isNameOverlaid {
+                            nameInfo(isOverlay: false)
+                                .matchedGeometryEffect(id: "nameInfo", in: nameNamespace)
+                                .padding(.top, 12)
+                                .padding(.bottom, 12)
+                        }
 
                         muteToggleRow
 
@@ -88,16 +89,27 @@ struct ProfileInfoScreen: View {
                     isAvatarExpanded = false
                 }
             }
+            if isNameOverlaid {
+                withAnimation(.easeOut(duration: 0.35)) {
+                    isNameOverlaid = false
+                }
+            }
             return
         }
 
         pulledDown = minY
-        guard !isAvatarExpanded else { return }
 
         let newRaw = minY / (maxAvatarHeight - minAvatarSize)
-        if newRaw >= 0.3 {
+        if !isAvatarExpanded && newRaw >= 0.3 {
             withAnimation(.easeOut(duration: 0.6)) {
                 isAvatarExpanded = true
+            }
+        }
+
+        let shouldOverlayName = newRaw > 0.5
+        if shouldOverlayName != isNameOverlaid {
+            withAnimation(.easeOut(duration: 0.3)) {
+                isNameOverlaid = shouldOverlayName
             }
         }
     }
@@ -116,7 +128,27 @@ struct ProfileInfoScreen: View {
             .scaledToFill()
             .frame(width: width, height: height)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(alignment: .bottomLeading) {
+                if isNameOverlaid {
+                    nameInfo(isOverlay: true)
+                        .matchedGeometryEffect(id: "nameInfo", in: nameNamespace)
+                        .padding(16)
+                }
+            }
             .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func nameInfo(isOverlay: Bool) -> some View {
+        VStack(alignment: isOverlay ? .leading : .center, spacing: 2) {
+            Text(userName)
+                .font(.title2.bold())
+                .foregroundStyle(isOverlay ? .white : .primary)
+
+            Text("oxirgi marta bugun 14:32 da online bo'lgan")
+                .font(.footnote)
+                .foregroundStyle(isOverlay ? .white.opacity(0.8) : .secondary)
+        }
     }
 
     // MARK: - Rows
