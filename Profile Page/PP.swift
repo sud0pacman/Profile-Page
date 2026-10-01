@@ -103,13 +103,7 @@ struct ProfileInfoScreen: View {
         if !isAvatarExpanded && newRaw >= 0.3 {
             withAnimation(.easeOut(duration: 0.6)) {
                 isAvatarExpanded = true
-            }
-        }
-
-        let shouldOverlayName = newRaw > 0.5
-        if shouldOverlayName != isNameOverlaid {
-            withAnimation(.easeOut(duration: 0.3)) {
-                isNameOverlaid = shouldOverlayName
+                isNameOverlaid = true
             }
         }
     }
