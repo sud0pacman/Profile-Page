@@ -109,7 +109,7 @@ struct ProfileInfoScreen: View {
         let height = minAvatarSize + (maxAvatarHeight - minAvatarSize) * progress
         let width = minAvatarSize + (screenWidth - minAvatarSize) * progress
         let circleRadius = minAvatarSize / 2
-        let cornerRadius = circleRadius * (1 - progress) + 24 * progress
+        let cornerRadius = circleRadius * (1 - progress)
 
         Image(avatarImageName)
             .resizable()
